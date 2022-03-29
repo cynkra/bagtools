@@ -48,10 +48,17 @@ find_pkg_funs <- function(pkg, path = ".", recursive = TRUE, exclude = NULL, inc
   if (include_namespaced) {
     i_namespaced_pkg <- i_namespaced[which(parse_data$text[i_namespaced-2] == pkg)]
     parse_data_namespaced <- parse_data[i_namespaced_pkg,, drop = FALSE]
+    if(nrow(parse_data_namespaced)) {
     parse_data_namespaced$text <- paste0(pkg, "::", parse_data_namespaced$text)
     parse_data_namespaced$message <- sprintf("Found `%s`", parse_data_namespaced$text)
-    parse_data_namespaced <- parse_data_namespaced[c("line1", "col1", "text", "file", "message")]
     parse_data_namespaced$type <- "info"
+    } else {
+      parse_data_namespaced$text <- character()
+      parse_data_namespaced$message <- character()
+      parse_data_namespaced$type <- character()
+    }
+    parse_data_namespaced <- parse_data_namespaced[c("line1", "col1", "text", "file", "message")]
+
   }
 
   if(length(i_namespaced)) parse_data <- parse_data[-i_namespaced,, drop = FALSE]
