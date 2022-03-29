@@ -57,7 +57,7 @@ find_pkg_funs <- function(pkg, path = ".", recursive = TRUE, exclude = NULL, inc
       parse_data_namespaced$message <- character()
       parse_data_namespaced$type <- character()
     }
-    parse_data_namespaced <- parse_data_namespaced[c("line1", "col1", "text", "file", "message")]
+    parse_data_namespaced <- parse_data_namespaced[c("line1", "col1", "text", "file", "message", "type")]
 
   }
 
