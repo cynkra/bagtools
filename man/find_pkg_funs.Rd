@@ -21,6 +21,8 @@ By default explores the working directory.}
 \item{recursive}{A boolean. Passed to \code{list.files()} if \code{path} is a directory}
 
 \item{exclude}{A character vector of function names to dismiss.}
+
+\item{include_namespaced}{Boolean}
 }
 \value{
 Returns its input invisibly, called for side effects

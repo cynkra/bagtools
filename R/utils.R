@@ -1,3 +1,7 @@
+#' @importFrom stats ave setNames
+#' @importFrom utils browseURL capture.output getParseData tail
+NULL
+
 globals <- new.env()
 # set to FALSE on top of tests
 globals$source_markers <- TRUE

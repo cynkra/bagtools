@@ -14,13 +14,19 @@ flow_view_source_calls(
 )
 }
 \arguments{
+\item{paths}{Paths to scripts or folders containing scripts
+By default explores the working directory.}
+
 \item{recursive}{Passed to \code{list.files()} when \code{paths} contains directories}
+
+\item{basename}{Boolean}
+
+\item{extension}{Boolean}
 
 \item{smart}{Whether to parse complex source calls for strings that look like script and
 match those to files found in \code{paths}}
 
-\item{path}{Paths to scripts or folders containing scripts
-By default explores the working directory.}
+\item{out}{See {flow} functions}
 }
 \value{
 Returns invisibly a data, called for side effects.

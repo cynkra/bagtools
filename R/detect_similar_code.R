@@ -12,6 +12,7 @@
 #'
 #' @export
 detect_similar_code <- function(paths = ".", recursive = TRUE, pattern = NULL) {
+  score <- NULL # for notes
   paths <- flatten_paths(paths, recursive)
   if (!is.null(pattern)) paths <- grep(pattern, paths, value = TRUE)
   dups <- dupree::dupree(paths)

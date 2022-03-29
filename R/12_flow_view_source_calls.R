@@ -16,11 +16,14 @@ extract_strings <- function(call) {
 #' defining `my_dir` will be enough to solve the issue.
 #' In other cases you might need to attach or/and install a package.
 #'
-#' @param path Paths to scripts or folders containing scripts
+#' @param paths Paths to scripts or folders containing scripts
 #'   By default explores the working directory.
 #' @param recursive Passed to `list.files()` when `paths` contains directories
+#' @param basename Boolean
+#' @param extension Boolean
 #' @param smart Whether to parse complex source calls for strings that look like script and
 #'   match those to files found in `paths`
+#' @param out See {flow} functions
 #'
 #' @return Returns invisibly a data, called for side effects.
 #' @export

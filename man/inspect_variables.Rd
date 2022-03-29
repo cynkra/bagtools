@@ -22,8 +22,14 @@ inspect_variables(
 \item{recursive}{Whether the directories given to \code{scope} should be inspected
 recursively}
 
+\item{vars}{Subset of variables to consider}
+
 \item{exclude}{variables to exclude, so common variable names such as \code{x} don't
 clutter the results.}
+
+\item{only_first}{Whether to show anly the first variable occurrence in a script}
+
+\item{focus}{"inputs", "outputs" or both (default)}
 }
 \value{
 Returns the source markers silently, called mainly for side effects

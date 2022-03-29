@@ -18,8 +18,11 @@
 #' @param scope A vector of files or directory to inspect
 #' @param recursive Whether the directories given to `scope` should be inspected
 #'   recursively
+#' @param vars Subset of variables to consider
 #' @param exclude variables to exclude, so common variable names such as `x` don't
 #'   clutter the results.
+#' @param only_first Whether to show anly the first variable occurrence in a script
+#' @param focus "inputs", "outputs" or both (default)
 #'
 #' @return Returns the source markers silently, called mainly for side effects
 #' @export

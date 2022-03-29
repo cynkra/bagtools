@@ -11,6 +11,7 @@ is_infix <- function(x) {
 #'   By default explores the working directory.
 #' @param recursive A boolean. Passed to `list.files()` if `path` is a directory
 #' @param exclude A character vector of function names to dismiss.
+#' @param include_namespaced Boolean
 #'
 #' @return Returns its input invisibly, called for side effects
 #' @export
