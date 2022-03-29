@@ -1,0 +1,17 @@
+default:
+  phases:
+    phase2:  2020-06-08
+    phase2b: 2020-09-28
+    phase3:  2021-02-15
+    phase4:  2021-06-21
+    phase5:  2021-10-11
+  azure:
+    tenantId: beee95bb-7bef-4392-95b3-c42fd7305a53
+    clientId: 90c57945-80fe-4621-9745-a02623eb466e
+    username: ag-lage@edibag.onmicrosoft.com
+
+prod:
+  api url: https://ws.impfmonitoring.admin.ch/api/
+
+test:
+  api url: https://api-vmdl-nch-test-01.azure-api.net/api/

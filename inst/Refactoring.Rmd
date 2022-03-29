@@ -1,0 +1,735 @@
+---
+title: "Code refactoring"
+author: ["Antoine Fabri", "cynkra GmbH"]
+date: "March 29th, 2022"
+output:
+  cynkradown::cynkra_slides:
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+    seal: true
+fontsize: 10pt
+lang: english
+font: frutiger
+wide: false
+colorlinks: false
+logo: true
+header-includes:
+  - \usepackage{parskip}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
+```
+
+# Intro
+
+This course is about refactoring code, it provides a roadmap to improve the code 
+base by small steps, avoiding breaking what works.
+
+We'll introduce concepts and apply them right away on the code sample we've been provided.
+
+We take the following steps :
+
+* 1- How not to break code (in an ideal world)
+* 2- Fix code
+* 3- Improve code structure
+* 4- Make code robust
+* 5- Style
+
+---
+
+# Packages
+
+To follow this course you'll need the following packages
+
+```{r, eval = FALSE}
+install.packages("lintr")
+install.packages("flow")
+install.packages("config")
+install.packages("conflicted")
+install.packages("rstudioapi")
+github::install_github("moodymudskipper/refactor")
+github::install_github("cynkra/bagtools")
+```
+
+We'll also use the repositories `cynkra/bag-consulting` and `covid19-madmurdock`
+
+---
+
+# Breaking code
+
+The proper way not to break things is :
+
+* To have version control (e.g. git)
+* To have formal tests (e.g. using the {testthat} package)
+
+---
+
+# Breaking code: version control
+
+Without version control :
+
+* Email team about updates.
+* Updates directly on production server
+* Previous code is lost, accidental deletions are deadly
+* No trace of who made the changes
+* Versions of code between users might be out of sync
+* Users shy to make any change
+
+---
+
+# Breaking code: version control
+
+With Version control :
+
+* Version control itself is a communicating tool
+* Work on branches without affecting production code until confident
+* All changes can be reverted
+* All changes and their author can be identified 
+* Everyone is synced
+* No harm is irreversible so more confident users
+
+---
+
+# Breaking code: version control
+
+Overhead ?
+
+* Basic knowledge needed to start, can be done from RStudio 
+* Need to think about repos, their names and scope
+* Security/confidentiality policy ? Bureaucracy ?
+
+Having version control should be a short/medium term goal
+
+---
+
+# Breaking code: formal tests
+
+Unit tests ensure that behavior that works keeps working.
+
+* {testthat} is a common framework for unit tests
+* We can write unit tests without packages (but easier with packages!)
+* But tests need functions
+* They play very well with version control
+* Coverage is a measure of how much of the code is tested
+
+Having formal tests should be a short/medium term goal too, but we need functions first!
+
+---
+
+# Fix code
+
+* Make sure your R code is valid everywhere
+
+Your code "works", you run it later, or send it to someone, it doesn't work anymore, why ?
+
+* Absolute paths vs relative paths
+* Package dependencies
+* Versions and systems
+
+---
+
+# Fix code: syntactic code
+
+`bagtools::check_files_parse()` will check all files of the project and make sure
+R scripts are really Rscripts and that their code is syntactic.
+
+```{r, eval = FALSE}
+bagtools::check_files_parse()
+```
+
+Let's try it!
+
+---
+
+# Fix code: Absolute paths
+
+* Avoiding absolute paths is the norm in software development
+* Absolute paths force all users to use the same directory layout
+
+An exception is external data stored in file outside of project : 
+
+* We might really need some absolute paths
+* Don't sprinkle those over your code!
+* Theses paths should be set in environment variables, options or config files (we'll come back to this)
+
+---
+
+# Fix code: Absolute paths
+
+Relative paths, relative to what ?
+
+* Relative paths are relative to working directory
+  * By default the project folder in R script if working in project
+  * By default the Rmd file's folder in case of a report
+  * A function might call `setwd()` and alter it and then your scripts don't work anymore
+  * They are often build with `file.path()`
+  
+We want to avoid using `setwd()` since it modifies the global state. There can be bad
+suprises, other scripts can use `setwd()` and disrupt our code, or running
+the scripts of this project will disrupt the next project you're working on,
+possibly writing file at the wrong places, maybe overwriting those.
+  
+---
+
+# Fix code: Absolute paths
+
+`here::here()` creates a path relative to the project folder, when {here} is loaded
+it fetches the current working directory (often but not always the project root itself) and finds the project root using heuristics.
+
+  * It guarantees your scripts and Rmds will refer to the same project root
+  * Functions that use it won't be polluted by a user or function calling `setwd()`
+  
+If you trust users won't set the working directory in random scripts and you don't use
+nested projecteds it's fine to use relative paths without `here::here()` in your R scripts.
+In particular source calls like `source("my/path.R")`.
+  
+Note : If for some reason you want to change your working directory locally in
+a function, and not affect the rest of the code, use `withr::local_dir(your_dir)`
+at the top of this function.
+
+---
+
+# Fix code: Absolute paths
+
+```{r}
+file.path("foo", "bar.baz")
+
+file.path(getwd(), "foo", "bar.baz")
+
+here::here("foo", "bar.baz")
+```
+
+---
+
+# Fix code: Absolute paths
+
+{lintr} is a fantastic package that we'll use several times in this course.
+`lint()` applies checks on a file, `lint_dir()` applies them on all the files
+contained in a folder (recursively).
+
+We'll use it now to detect absolute paths and calls to `setwd()` or `getwd()`
+so we can clean up and use `here::here()` instead.
+
+```{r, eval = FALSE}
+# Find absolute paths (there might be couple false positives!)
+lint_dir(linters = absolute_path_linter())
+# Find uses of undesirable functions setwd and getwd
+lint_dir(linters = undesirable_function_linter(c(setwd = NA, getwd = NA)))
+```
+
+---
+
+# Fix code: Dependencies
+
+Make sure dependencies are available before running anything.
+
+`library()` calls should all be at the top of the top level script, or at the top
+of a setup script called by the top level script.
+
+Ideally we should check if packages that are need but not attached are installed.
+
+---
+
+# Fix code: Dependencies
+
+`library()` calls
+
+* Don't attach too many packages with `library()`
+  * Risks of overriding functions
+  * Risks of not knowing where which function comes from
+  * Use the `::` notation for packages you don't use all that much
+* Attach all packages on top of main script and nowhere else
+  * Certainly never ever in a function
+  * So we know at a glance what we depend on
+  * If needed, there's nothing wrong with a separate script purely dedicated to
+  attaching packages
+* Consider using {conflicted} to sort out early the conflicts between function
+  names
+* `require()` is a similar function to `library()` which should never be used
+  because it tries to attach and doesn't fail if the package isn't installed.
+
+---
+
+# Fix code: Dependencies
+
+`library(, include.only =)`
+
+* `library(pkg)` is equivalent to `#'@import pkg` in a package (documented with {roxygen2})
+* `library(pkg, include.only = c("fun1", "fun2"))` is equivalent to `#'@importFrom pkg fun1 fun2` in a package
+
+In a package the latter is recommended, you should know what you're importing in your package.
+
+Thus in your refactoring process striving to use `::` and `library(, include.only =)`
+for commonly used functions will put you in a good position.
+
+---
+
+# Fix code: Dependencies
+
+We can use {lintr} again to find calls to `library()` and `require()`
+  
+```{r, eval = FALSE}
+lint_dir(linters = undesirable_function_linter(
+  c(library = NA, require = NA)
+))
+```
+  
+---
+
+# Fix code: Dependencies
+
+{conflicted}
+
+Functions overriding each other is a frequent source of bugs, {conflicted}
+helps by failing as soon as a potential conflict is found, and forcing the user
+to choose explicitly their favored version.
+
+* Use `library(conlicted)` on top of other `library()` calls, 
+* Run these other calls and observe what failures you get
+* Use `conflict_prefer()` after attaching a package to deal with those conflicts
+* Restart session and make sure the sequence now runs without error
+  
+---
+
+# Fix code: Dependencies
+
+{tidyverse}
+
+`library(tidyverse)` is good for a data analysis script, for a clean production codebase
+it might contain too many functions (with more to come with each version).
+
+We might prefer to restrict ourselves to `library(dplyr)`, maybe `library(tidyr)`, then use `::` for other functions.
+
+A roadmap to clean this up is to replace `library(tidyverse)` with : 
+
+```{r, eval = FALSE}
+library(ggplot2)
+library(tibble)
+library(tidyr)
+library(readr)
+library(purrr)
+library(dplyr)
+library(stringr)
+library(forcats)
+```
+
+---
+
+# Fix code: Dependencies
+
+`bagtools::find_pkg_funs()`
+
+Now we want to check if those packages are used and which functions are used.
+We'll use `bagtools::find_pkg_funs()`, on all packages that we attached, and
+decide if we want to keep our `library()` calls as they are, use `library(, include.only=)`,
+or use the `::` notation.
+
+```{r, eval = FALSE}
+bagtools::find_pkg_funs("ggplot2")
+bagtools::find_pkg_funs("tidyr", exclude = "%>%")
+# ...
+```
+
+---
+
+# Fix code: Dependencies
+
+Make sure that all dependencies are installed
+
+We now have a few library calls and a lot of `pkg::fun()` calls. How can we make sure that the user has installed all required packages ?
+
+For this we can use `bagtools::use_namespace_check()`, calling it will open
+a new tab in RStudio with code to be pasted on top of the library calls.
+
+```{r, eval = FALSE}
+bagtools::use_namespace_check()
+```
+
+
+---
+
+# Fix code: versions and systems
+
+Reproducibility is a complex problem and we've done well to grab the lower
+hanging fruits, to go further we can :
+
+* Control the versions of the packages we use using the {renv} package
+* Avoid using recent additions to R so our code runs on previous versions
+ (avoid `|>`, `deparse1()`, `str2lang()`, ...)
+* Avoid windows/unix specific functions or make sure to deal with all cases
+
+---
+
+# Code structure
+
+* Isolate function definitions
+* Disentangle source inferno
+* Refactor scripts into functions
+* Build a package
+
+---
+
+# Code structure : nested source()
+
+`bagtools:::flow_view_source_calls()`
+
+* A complex web of scripts makes it hard to understand what variables will be used at which place. 
+* `bagtools:::flow_view_source_calls()` can help to visualize the relationships between sourced scripts
+* A script being sourced several times is a very good sign that it should be made
+ as a function or collection of functions and be sourced once at startup, or even
+ made into its own package
+
+```{r, eval = FALSE}
+bagtools:::flow_view_source_calls(out = "pdf")
+```
+
+This will evaluate independently the first argument of `source()` in all relevant code
+so this will not work if we have code like `for (file in files) source(file)`,
+but code like `source("my/path")` or `source(here::here("my/path"))`, or even `source(here(my_dir, "my/path"))`
+
+---
+
+# Code structure : Isolate functions
+
+function definitions :
+
+* Are not expensive to source
+* Have no dependencies (though we need the dependencies to call the functions)
+* Don't usually depend on previous code, so can be run at the start
+* Might clutter the scripts if they are not isolated
+
+For these reasons we wish to isolate existing function definitions from
+the scripts they are built on.
+
+
+---
+
+# Code structure : Isolate functions
+
+`bagtools::identify_hybrid_scripts()`
+
+This function will help you recognize scripts that contain both function definitions
+and other object definitions.
+
+Once identified, we can move the function definitions to a new file and source them
+at the top of our main script (or setup script), right below the library calls (that's to make the library calls more visible, these scripts don't need packages to be loaded).
+
+For now we can store those into a file suffixed with `_funs.R` located at the same
+place. We'll organize it better at a later step.
+
+---
+
+# Code structure : Scripts to functions
+
+Good scripts are sometimes easier to write and debug than functions :
+  * No need to think about a function name, no need to isolate arguments and output value
+  * We can run them line by line, no need for `browser()` or `debug()`/`debugonce()`
+  
+BUT :
+  * They're a slippery slope
+  * If a script is confusing, it should probably be wrapped into one or more functions
+  * Too many functions : rarely an issue, what about too many scripts ?
+  
+---
+
+# Code structure : Scripts to functions
+
+* A good script is self contained it means
+  * It loads what it needs
+  * It writes its output and stops there, meaning it's not there to populate
+    the global environment with variables for further scripts to pick up 
+
+* A call to a good function works like a sourced script except that :
+  * It has defined inputs aka arguments (with optional defaults)
+  * A well define output aka the return value OR a well defined side-effect
+  * An execution environment, child of the function's environment where non input objects
+    are fetched from (often the package's namespace)
+  * Because of the above we can name our objects more simply with no worries about
+    name collision
+
+* A call to a good **packaged** function :
+  * Guarantees that the function will not work differently depending on what 
+  variables are stored in the environment or what packaged are attached. 
+  * Provides a namespace where unexported functions can sit, invisible from the user.
+  * Benefits from various checks (e.g. do we have the right packages with the right version installed?)
+  * Benefits from easier unit tests
+  
+  
+---
+
+# Code structure : Scripts to functions
+
+* To be able to refactor scripts into functions we need to identify inputs and
+outputs.
+* Inputs are (roughly) all objects used in the script that are not defined there and
+  don't come from packages
+* Outputs are objects that are used by further functions, they are harder to identify
+
+---
+
+# Code structure : scripts to functions
+
+`bagtools::inspect_variables()` is a **static** tool (it doesn't run the code, only looks at it)
+that can helps us keep track of how variables are used in a script.
+
+```{r, eval = FALSE}
+bagtools::inspect_variables(path, scope)
+```
+
+Provided a main script it shows us :
+* Which variables are defined (using `<-` or `=`) in the global environment
+* Which variables are modified (meaning they are defined after being used)
+* Which variables are used (outside of modifications and definitions)
+* the 3 latter for all scripts in scope, but restricted to the variables found in main script
+
+---
+
+# Code structure : scripts to functions
+
+We can focus on the **outputs** of the main script:  `bagtools::inspect_variables()`
+
+In that case :
+* We don't bother with variables used in the script but not defined or modified,
+these are not potential outputs
+
+```{r, eval = FALSE}
+bagtools::inspect_variables(path, scope, focus = "outputs")
+```
+
+---
+
+# Code structure : script to function
+
+We can focus on the **inputs** of the main script:  `bagtools::inspect_variables()`
+
+In that case :
+* We don't bother with variables defined in the main script but not modified,
+these are not inputs by definition
+* We don't bother with variables that are only used and not defined or modified 
+  in other scripts since this doesn't give us information on where our inputs are defined
+
+```{r, eval = FALSE}
+bagtools::inspect_variables(path, scope, focus = "inputs")
+```
+
+--- 
+
+# Code structure : script to function
+
+We might have a lot of results and often seeing the first instance of a variable
+is enough, so we can use `only_first` to display only those.
+
+```{r, eval = FALSE}
+bagtools::inspect_variables(path, scope, focus = "inputs", only_first = TRUE)
+bagtools::inspect_variables(path, scope, focus = "outputs", only_first = TRUE)
+```
+
+Let's use it on our project!
+
+--- 
+
+# Code structure : script to function
+
+With the help of `bagtools::inspect_variables()` we can identify inputs and outputs
+so our script can be rewritten as :
+
+```{r, eval = FALSE}
+# if the script was producing an output
+my_script_fun <- function(input1, input2, ...) {
+  # copy script there
+  output # OR if several outputs: list(output1 = output1, output2 = output2)
+}
+output <- my_script_fun(input1, input2, ...)
+# AND if several outputs
+# output1 <- output$output1
+#
+
+# or if the script was producing a side effect
+my_script_fun <- function(input1, input2, ...) {
+  # copy script there
+  output # or list(output1 = output1, output2 = output2)
+  invisible(NULL) # or invisible(input1) if we have a main data input 
+}
+my_script_fun(input1, input2, ...)
+```
+
+Note that if a script has both side effects and outputs it should not be refactored
+into a single function. It's very important to separate pure functions from side effect
+functions (which write to file or databases, upload or plot for example).
+
+The above works and is already an improvement as inputs and outputs are isolated
+and we don't populate the global environment but we don't want to mix free code 
+and function definitions, so we should isolate the function in a function script 
+and source it at the top level.
+
+--- 
+
+# Code structure : script to function
+
+Now that our code is in a function
+  
+* We can now simplify the names used, that'll be easier to read, use the "rename in scope utility" :
+  select argument or any variable and CTRL + ALT + SHIFT + M
+* We can use some other automated checking tools to be sure for instance that our functions
+  don't have dead code, such as `flow::flow_view_vars()`
+* We can build unit tests
+* We can refactor its code
+
+---
+
+# Code structure : functions to package
+
+If we have a self contained group of functions that we might want to use on several
+projects we might want to put them in a specific package.
+
+This can be as simple as creating a new package through the Rstudio interface,
+adding a `#'@ export` tag above each function, `devtools::document()` and 
+`devtools::install()`.
+
+From there we can improve step by step, by unexporting unneeded functions, 
+providing argument descriptions and more documentation, add the dependencies properly etc.
+
+It's better to get names right from the start.
+
+---
+
+# Code structure : functions to package
+
+We don't get something perfect right away, but it works already and we now
+can use checks to get cleaner step by step.
+
+Then we're set to add unit tests for our functions.
+
+Note that packages can contain data too, we can use `usethis::use_data_raw()`
+to ease the process.
+
+We might even define a {tidyverse} like package with all our packages,
+using {pkgverse}.
+
+---
+
+# global variables and configuration files
+
+Global variables can be defined directly in the code, but this means that:
+* To change them we need to change the code, not always convenient especially for packaged code
+* To change them we need to understand R code to an extent
+* We keep updating code that already works
+
+Alternatives are to store some value using options, usually defined in the .RProfile,
+or environment variables often defined in `.Renviron` or in the `.RProfile` using
+`Sys.setenv()`.
+
+These solutions are not perfect either since `.RProfile`s tend to get messy and
+environment are limited.
+
+Another option in config files. The {config} package provides such solution
+
+---
+
+# global variables and configuration files
+
+Assume we place the following in a `config.yml` file at the root of our working directory
+
+```
+default:
+  trials: 5
+  dataset: "data-sampled.csv"
+  values: !expr c(
+    1, 2, 3)
+
+test:
+  trials: 30
+  dataset: "data-test.csv"
+  
+production:
+  inherits: test
+  dataset: "data.csv"
+```
+
+* `config::get("trials")` will return `5` by default
+* `config::get("values")` will return `c(1, 2, 3)`, we can use this syntax to
+  evaluate options or environment variables too
+* `config::get("trials", "test")` will return `30`
+* `config::get("trials", "production")` will return `30` as well, inheriting from "test"
+* `config::get("trials")`, if we set `Sys.setenv(R_CONFIG_ACTIVE = "production")`, 
+  will return `30`
+  
+---
+
+## Robust code: verbose code
+
+Code that talks too much is a sign some things are not robust
+
+And when it is not the case, we tend not to listen as carefully to code that 
+talks to much, which will leads to issues as well.
+
+Strive to have silent code when you can.
+  * Avoid most warnings as if they were errors
+  * Avoid messages too when you can :
+    * Give an explicit argument to {dplyr} join functions
+    * Provide the `col_types` argument to `readr::read_csv`
+    * Ungroup all grouped data.frames, strive to always call `summarize()`
+    with `.groups = "drop"`. Keeping groups is dangerous and makes
+    functions like `mutate()` and `filter()` MUCH slower. If you really want
+    a grouped data frame suffix its name with `_grouped`
+    
+The function `bagtools::detect_ambiguous_summarize_calls()` can be used to
+detect problematic summarize calls.
+    
+## Robust code: overwriting variables
+
+Overwriting a variable in a code block is OK because the intent is clear
+(though we can use the pipe!).
+
+Overwriting a variable in another script is a good way to make mistake because we skipped
+a script or ran one twice.
+
+## Robust code: DRY
+
+DRY: Don't Repeat Yourself, strive to provide for a single source of truth
+
+* We find 2 versions of isoyearweek() in the code
+* We find different versions of how to add age category columns to the data,
+  with some range definitions repeated in several places
+* We find some lookups of codes and vaccines duplicated
+
+These are all dangerous and hard to read:
+* If one is wrong, several need to be updated
+* If they are not, some code will give wrong results, some won't, which is very hard to debug
+* New or forgetful collaborators will not realize that they need to look further for duplicates
+  once they've found a source of truth
+  
+`bagtools::detect_similar_code()` can help detect some of these instances
+  
+## Robust code: Long data 
+
+Long data is often :
+* faster
+* easier to manipulate
+* easier to plot
+
+wide data is often a recipe for slow and messy code, so widening the data
+is better done right before reporting.
+
+---
+
+# Style
+
+A few general comments about style :
+
+* logical conditions can often be simplified and be made more readable
+* Nesting pipe chains defies the purpose of the pipe
+* Consistency of namespaced calls, if we attach dplyr, no need for dplyr::
+* Consistency of `return()` calls at the end of functions
+* clean up commented code, why is it there ? Cannot we just remove it ? If not
+  let it be proper code, with comments if it's WIP, maybe even trapped into a `if (FALSE) {}`
+  clause
+* dotted `.arguments` are useful to avoid collision with named parameters provided to the
+  `...` argument. There is no reason to use them in other cases.
+* Use `bagtools::use_lintr_template_on_dir()` and `bagtools::use_lintr_template_on_file()`
+  to easily apply in turn various linters on your code `
