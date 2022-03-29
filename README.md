@@ -17,7 +17,7 @@ encounters in their code base.
 Install with:
 
 ``` r
-remotes::install_github("moodymudskipper/bagtools")
+remotes::install_github("cynkra/bagtools")
 ```
 
 ## Features

@@ -27,7 +27,7 @@ These are general functions, but designed to be fit to the issues BAG encounters
 Install with:
 
 ``` r
-remotes::install_github("moodymudskipper/bagtools")
+remotes::install_github("cynkra/bagtools")
 ```
 
 ## Features
