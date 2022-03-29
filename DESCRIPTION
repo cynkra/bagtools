@@ -17,3 +17,5 @@ Imports:
     rlang,
     rstudioapi,
     webshot
+URL: https://github.com/cynkra/bagtools
+BugReports: https://github.com/cynkra/bagtools/issues
