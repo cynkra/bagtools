@@ -33,9 +33,10 @@ or folders:
     installed : `use_namespace_check()`
 
 -   Identify scripts that contain both functions and other object
-    definitions : `identify_hybrid_script()`
+    definitions : `identify_hybrid_scripts()`
 
--   Find all uses of a package’s functions : `find_package_funs()`
+-   Find all uses of a package’s functions (watch out for fals
+    positives!): `find_package_funs()`
 
 -   Detect similar code to spot places where a generalized function
     would be beneficial : `detect_similar_code()`
@@ -57,3 +58,22 @@ or folders:
 
 -   Detect all calls to `summarize()` for which the `.groups` argument
     was not set `detect_ambiguous_summarize_calls()`
+
+## More functions from other packages
+
+-   Refactor a function, keeping both original and updated code, to
+    control they do the same thing.
+
+``` r
+# remotes::install_github("moodymudskipper/refactor")
+library(refactor)
+fun <- function (x) {
+  # original code
+} %refactor_value% {
+  # updated code
+}
+```
+
+-   View the variable dependencies in code to discover potential dead
+    code or clusters of variable interactions that might be refactored
+    into other functions: `flow::flow_view_vars()`
