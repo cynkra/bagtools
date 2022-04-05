@@ -60,9 +60,15 @@ inspect_variables <- function(
   if(!"inputs" %in% focus) {
     # we focus on outputs only so we keep definitions in path_markers and use/modification in scope_markers
     path_markers <- path_markers[path_markers$file_action %in% c("define", "modify"),, drop = FALSE]
+    # keep only relevant variables
+    scope_markers <- scope_markers[scope_markers$var %in% path_markers$var,, drop = FALSE]
   }
   if(!"outputs" %in% focus) {
     path_markers <- path_markers[path_markers$file_action %in% c("use", "modify"),, drop = FALSE]
+
+    # keep only relevant variables
+    scope_markers <- scope_markers[scope_markers$var %in% path_markers$var,, drop = FALSE]
+    # keep only definitions and modifications
     scope_markers <- scope_markers[scope_markers$file_action %in% c("define", "modify"),, drop = FALSE]
   }
   markers <- rbind(path_markers, scope_markers)
